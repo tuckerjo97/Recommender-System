@@ -49,13 +49,15 @@ def load_data(data_path):
     return df_with_count, song_id_db
 
 
-def perform_ALS(dataframe, rank):
+def fit_model(dataframe, rank, alg="ALS"):
     """
     Performs implicit ALS
 
     Arguments:
         dataframe: Already formatted dataframe in the form of (User, Item, Count). Should be implicit data.
         rank: rank of matrices produced by ALS
+        alg: algorithm used in recommender system. Defaults to Alternating Least Squares. Could also be SVD or nearest
+        neighbor
 
     Return:
         model: model of ratings based off implicit data.
@@ -73,12 +75,12 @@ def recommend(model, item_db, users, numrecommend = 5):
     for user in users:
         items = recommend_df.filter(recommend_df.userid == user).select("recommendations").collect()
         user_recs = []
-        for line in items:
-            id = line["traid"]
+        for line in items[0]:
+            id = line[0]
             user_recs.append(item_db[id])
         print("User {} should listen to: {}".format(user, user_recs))
 
 path = "lastfm-dataset-1K\\userid-timestamp-artid-artname-traid-traname.tsv"
 lastfm_df, song_to_id_db = load_data(path)
-als_model = perform_ALS(lastfm_df, 10)
-recommend(als_model, song_to_id_db, [0,1,2])
+als_model = fit_model(lastfm_df, 10)
+recommend(als_model, song_to_id_db, [1,2])
