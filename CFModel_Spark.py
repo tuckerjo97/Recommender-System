@@ -82,3 +82,4 @@ path = "lastfm-dataset-1K\\userid-timestamp-artid-artname-traid-traname.tsv"
 lastfm_df, song_to_id_db = load_data(path)
 als_model = perform_ALS(lastfm_df, 10)
 recommend(als_model, song_to_id_db, [0,1,2])
+"test"
