@@ -9,3 +9,6 @@ None of these files are optimized, and none are heavily tested. All were done wi
 a recommender system works, not to be perfect.
 
 Files were created in oder listed, so they should get better as they go on.
+
+Explicit data set used: MovieLens small dataset
+Implicit data set used: LastFM 1K user dataset
