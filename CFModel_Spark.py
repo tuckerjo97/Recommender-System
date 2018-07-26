@@ -1,7 +1,7 @@
 from pyspark.sql import SparkSession
 from pyspark.sql.types import *
 from pyspark.ml.recommendation import *
-from pyspark.sql.functions import udf
+from pyspark.sql.functions import udf, concat_ws
 
 
 def load_data(data_path):
@@ -31,10 +31,14 @@ def load_data(data_path):
     df_raw = spark.read.csv(data_path, header=False, schema=schema, sep="\t")
     userid_format_udf = udf(lambda x: x[5:], StringType())
     df_cleaned = df_raw.dropna()
-    df_cleaned = df_cleaned.drop("timestamp", "artid", "artname")
+    df_cleaned = df_cleaned.filter(df_cleaned.traname != "[Untitled]")
+    df_cleaned = df_cleaned.filter(df_cleaned.traname != "Untitled")
     df_formatted = df_cleaned.withColumn("userid", userid_format_udf(df_cleaned.userid))
     df_formatted = df_formatted.withColumn("userid", df_formatted.userid.cast(IntegerType()))
+    df_formatted = df_formatted.withColumn("traname", concat_ws(" - ", df_formatted.traname, df_formatted.artname))
+    df_formatted = df_formatted.drop("timestamp", "artid", "artname")
     unique_songs = df_formatted.select("traname").distinct().collect()
+
     id_song_db = {}
     song_id_db = {}
     for num in range(len(unique_songs)):
@@ -46,7 +50,7 @@ def load_data(data_path):
 
     print("Data successfully loaded and formatted from: {}".format(path))
 
-    return df_with_count, song_id_db
+    return df_with_count, id_song_db
 
 
 def fit_model(dataframe, rank, alg="ALS"):
@@ -70,12 +74,20 @@ def fit_model(dataframe, rank, alg="ALS"):
 
 
 def recommend(model, item_db, users, numrecommend = 5):
+    """
+    Prints numrecommend recommendations for each user in users
+    Arguments:
+        model: Trained model from fit_model
+        item_db: Database of itemid to itemname
+        users: either a single user id or a list of user ids
+        numrecommend: the number of recommended items returned for each user
+    """
     recommend_df = model.recommendForAllUsers(numrecommend).sort("userid")
     recommend_df.show()
     for user in users:
-        items = recommend_df.filter(recommend_df.userid == user).select("recommendations").collect()
+        items = recommend_df.filter(recommend_df.userid == user).select("recommendations").collect()[0][0]
         user_recs = []
-        for line in items[0]:
+        for line in items:
             id = line[0]
             user_recs.append(item_db[id])
         print("User {} should listen to: {}".format(user, user_recs))
