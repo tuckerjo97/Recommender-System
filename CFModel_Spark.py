@@ -6,7 +6,7 @@ from pyspark.sql.functions import udf, concat_ws
 
 def load_data(data_path):
     """
-    Loads implicit data set into a RDD
+    Loads implicit data set into a RDD. Need to change formatting functions for different datasets.
 
     Arguments:
           data_path: path for where to find data set to import
@@ -20,6 +20,7 @@ def load_data(data_path):
         .builder\
         .getOrCreate()
 
+    ### Start of formatting ###
     schema = StructType([
         StructField("userid", StringType(), True),
         StructField("timestamp", StringType(), True),
