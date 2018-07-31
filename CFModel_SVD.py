@@ -173,6 +173,14 @@ def recommend(pred_matrix, actual_matrix, user_num, num_recs):
     # returns -1 if all items were already rated
 
 
+def parse_recommend(rec_list, movie_db):
+    rec_string = []
+    db_as_dict = pd.Series(movie_db.title.values, index=movie_db.new_movie_Id).to_dict()
+    for rec in rec_list:
+        rec_string.append(db_as_dict[rec])
+    return rec_string
+
+
 # Needed to make because movie ids were not sequential. regenerates movie ids in sequential order and matches up
 # original ratings
 def reformat_movies(ratings_db, movie_db):
@@ -201,11 +209,10 @@ if __name__ == "__main__":
     # cross_validation(header, matrix)
 
     test_pivot = test.pivot_table(values="rating", index="user_id", columns="new_movie_Id", fill_value=0)
-    test_other_pivot = test.pivot_table(values="rating", index="user_id", columns="item_id", fill_value=0)
     test_pivot = test_pivot.values
-    test_other_pivot = test_other_pivot.values
-    movie_list = try_svd(test_pivot, 0, True, 1)
-    print(movie_list)
+    user = 1
+    movie_list = try_svd(test_pivot, 1, True, user)
+    print("recommended movies for user {} are: ".format(user) + str(parse_recommend(movie_list, movie_db)))
 
 
 
