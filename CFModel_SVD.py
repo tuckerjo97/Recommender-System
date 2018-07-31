@@ -5,7 +5,8 @@ from sklearn.metrics import mean_squared_error
 from math import sqrt
 
 
-def try_svd(train_data_matrix, test_data_matrix, with_dist=True, recommend_user=-1):
+def try_svd(train_data_matrix, test_data_matrix, with_dist=True, recommend_user=-1, num_recs=5):
+    print("Trying to do SVD")
     u, s_array, vh = np.linalg.svd(train_data_matrix, full_matrices=False)
     s_array = np.sqrt(s_array)
     s_diag = np.diag(s_array)
@@ -47,8 +48,8 @@ def try_svd(train_data_matrix, test_data_matrix, with_dist=True, recommend_user=
     else:
         x_pred = np.dot(np.dot(u, s_latent), vh)
 
-    if recommend_user >= 0 & recommend_user < train_data_matrix.shape[0]:
-        return recommend(x_pred, train_data_matrix, recommend_user)
+    if recommend_user >= 0 and recommend_user < train_data_matrix.shape[0]:
+        return recommend(x_pred, train_data_matrix, recommend_user, num_recs)
         # if a specific user index is added, will return highest recommended item index for user
 
     x_rmse = rmse(x_pred, test_data_matrix)
@@ -152,27 +153,59 @@ def bootstrap(header, matrix):
     print("AVG RMSE: " + str(avg_rmse))
 
 
-def recommend(pred_matrix, actual_matrix, user_num):
+def recommend(pred_matrix, actual_matrix, user_num, num_recs):
+    print("Finding recommendations")
     user_pred = pred_matrix[user_num]
     user_actual = actual_matrix[user_num]
     user_actual_bool = user_actual.astype(bool)
-    found = False
-    while not found:
+    rec_list =[]
+    while num_recs > 0:
         item_index = np.argmax(user_pred)
         if not user_actual_bool[item_index]:
-            print("recommended movie is: " + str(item_index))
-            return user_pred[item_index]
+            rec_list.append(item_index)
+            num_recs -=1
+            user_pred[item_index]=0
         else:
             user_pred[item_index] = 0
         if np.sum(user_pred) == 0:
             found = True
-    return -1
+    return rec_list
     # returns -1 if all items were already rated
+
+
+# Needed to make because movie ids were not sequential. regenerates movie ids in sequential order and matches up
+# original ratings
+def reformat_movies(ratings_db, movie_db):
+    movie_db['new_movie_Id'] = range(len(movie_db))
+    id_dict = dict(zip(movie_db['movieId'], movie_db['new_movie_Id']))
+    rating_copy = ratings_db.copy()
+    ratings_db['new_movie_Id'] = ratings_db['item_id'].map(id_dict)
+    return ratings_db, movie_db
 
 
 if __name__ == "__main__":
     header = ['user_id', 'item_id', 'rating', "timestamp"]
-    matrix = 'ml-100k/u.data'
-    test = pd.read_csv(matrix, sep='\t', names= header)
-    test = np.array(test.pivot_table(index='user_id', columns='item_id', values='rating', fill_value=0))
-    cross_validation(header, matrix)
+    matrix = 'ml-latest-small/ratings.csv'
+    test = pd.read_csv(matrix, names= header, skiprows=1)
+
+    movie_url = 'ml-latest-small/movies.csv'
+    movie_db = pd.read_csv(movie_url)
+
+    pd.set_option('max_colwidth', 1000000)
+    pd.set_option('expand_frame_repr', True)
+    pd.options.display.max_columns = 20
+    movie_db = movie_db.drop("genres", axis=1)
+
+    test, movie_db = reformat_movies(test, movie_db)
+    # test = np.array(test.pivot_table(index='user_id', columns='item_id', values='rating', fill_value=0))
+    # cross_validation(header, matrix)
+
+    test_pivot = test.pivot_table(values="rating", index="user_id", columns="new_movie_Id", fill_value=0)
+    test_other_pivot = test.pivot_table(values="rating", index="user_id", columns="item_id", fill_value=0)
+    test_pivot = test_pivot.values
+    test_other_pivot = test_other_pivot.values
+    movie_list = try_svd(test_pivot, 0, True, 1)
+    print(movie_list)
+
+
+
