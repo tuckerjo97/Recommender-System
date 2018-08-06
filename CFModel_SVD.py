@@ -3,6 +3,7 @@ import pandas as pd
 from sklearn import model_selection as ms
 from sklearn.metrics import mean_squared_error
 from math import sqrt
+import sys
 
 
 def try_svd(train_data_matrix, test_data_matrix, with_dist=True, recommend_user=-1, num_recs=5):
@@ -186,32 +187,36 @@ def parse_recommend(rec_list, movie_db):
 def reformat_movies(ratings_db, movie_db):
     movie_db['new_movie_Id'] = range(len(movie_db))
     id_dict = dict(zip(movie_db['movieId'], movie_db['new_movie_Id']))
-    rating_copy = ratings_db.copy()
     ratings_db['new_movie_Id'] = ratings_db['item_id'].map(id_dict)
     return ratings_db, movie_db
+
+
+def get_user_rated_movies(ratings_db, movie_db, user):
+    user_movies_list = []
+    user_movies_id = pd.Series(ratings_db[ratings_db.user_id == user].item_id)
+    for item in user_movies_id:
+        movie = movie_db[movie_db.movieId == item].title.values[0]
+        user_movies_list. append(movie)
+    print(user_movies_list)
 
 
 if __name__ == "__main__":
     header = ['user_id', 'item_id', 'rating', "timestamp"]
     matrix = 'ml-latest-small/ratings.csv'
-    test = pd.read_csv(matrix, names= header, skiprows=1)
+    ratings = pd.read_csv(matrix, names= header, skiprows=1)
 
     movie_url = 'ml-latest-small/movies.csv'
     movie_db = pd.read_csv(movie_url)
-
-    pd.set_option('max_colwidth', 1000000)
-    pd.set_option('expand_frame_repr', True)
-    pd.options.display.max_columns = 20
     movie_db = movie_db.drop("genres", axis=1)
 
-    test, movie_db = reformat_movies(test, movie_db)
-    # test = np.array(test.pivot_table(index='user_id', columns='item_id', values='rating', fill_value=0))
+    ratings, movie_db = reformat_movies(ratings, movie_db)
+    # ratings = np.array(ratings.pivot_table(index='user_id', columns='item_id', values='rating', fill_value=0))
     # cross_validation(header, matrix)
 
-    test_pivot = test.pivot_table(values="rating", index="user_id", columns="new_movie_Id", fill_value=0)
-    test_pivot = test_pivot.values
+    ratings_pivot = ratings.pivot_table(values="rating", index="user_id", columns="new_movie_Id", fill_value=0)
+    ratings_pivot = ratings_pivot.values
     user = 1
-    movie_list = try_svd(test_pivot, 1, True, user)
+    movie_list = try_svd(ratings_pivot, 1, True, user)
     print("recommended movies for user {} are: ".format(user) + str(parse_recommend(movie_list, movie_db)))
 
 
